@@ -1,0 +1,33 @@
+name: Crawl+Build+Deploy
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r bazos_crawler/requirements.txt
+      - run: python bazos_crawler/bazos_crawler.py
+        env:
+          PUSHOVER_USER: \${{ secrets.PUSHOVER_USER }}
+          PUSHOVER_TOKEN: \${{ secrets.PUSHOVER_TOKEN }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: |
+          cd web
+          npm ci
+          npm run build
+      - run: |
+          mkdir -p web/dist/ads
+          cp -r ads/* web/dist/ads/
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: \${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web/dist
+          publish_branch: gh-pages
