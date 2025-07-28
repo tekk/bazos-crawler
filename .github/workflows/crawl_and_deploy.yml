@@ -24,7 +24,9 @@ jobs:
           npm run build
       - run: |
           mkdir -p web/dist/ads
-          cp -r ads/* web/dist/ads/
+          mkdir -p web/dist/markdowns
+          cp -r ads/* web/dist/ads/ 2>/dev/null || true
+          cp -r markdowns/* web/dist/markdowns/ 2>/dev/null || true
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
         with:
