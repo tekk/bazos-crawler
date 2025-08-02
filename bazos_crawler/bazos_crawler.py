@@ -234,6 +234,7 @@ def crawl():
                 "title":title,
                 "price":price,
                 "date":date.strftime('%Y-%m-%d'),
+                "found_at":datetime.now().isoformat(),
                 "query":q,
                 "url":link,
                 "images":[f"data/found_items/{str(p.relative_to(OUT_DIR))}" for p in imgs],
