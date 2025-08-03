@@ -9,27 +9,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r bazos_crawler/requirements.txt
-      - run: python bazos_crawler/bazos_crawler.py
+      
+      - name: Install Python dependencies
+        run: pip install -r bazos_crawler/requirements.txt
+      
+      - name: Run crawler
+        run: python bazos_crawler/bazos_crawler.py
         env:
-          PUSHOVER_USER: \${{ secrets.PUSHOVER_USER }}
-          PUSHOVER_TOKEN: \${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+      
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: |
+      
+      - name: Build web app
+        run: |
           cd web
           npm ci
           npm run build
-      - run: |
-          mkdir -p web/dist/ads
-          mkdir -p web/dist/markdowns
-          cp -r ads/* web/dist/ads/ 2>/dev/null || true
-          cp -r markdowns/* web/dist/markdowns/ 2>/dev/null || true
-      - name: Deploy
+      
+      - name: Copy data to dist
+        run: |
+          mkdir -p web/dist/data
+          cp -r web/data/* web/dist/data/ 2>/dev/null || true
+      
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: \${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./web/dist
           publish_branch: gh-pages

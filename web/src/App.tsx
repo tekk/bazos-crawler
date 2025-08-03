@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [isMobileDetailView, setIsMobileDetailView] = useState(false);
 
   useEffect(() => {
     fetch("./data/found_items/index.json")
@@ -51,23 +52,61 @@ const App: React.FC = () => {
       });
   }, []);
 
+  // Handle screen resize to reset mobile detail view on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && isMobileDetailView) {
+        setIsMobileDetailView(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileDetailView]);
+
   const queries = Array.from(new Set(ads.map(a => a.query))).sort();
   const filteredAds = filter === "all" ? ads : ads.filter(a => a.query === filter);
 
-  // Function to parse location into city and postal code
+  // Function to parse location into city only (postal code stored but not displayed)
   const parseLocation = (location: string) => {
     if (!location) return { city: "", postalCode: "" };
     
-    // Try to match postal code pattern (5 digits)
+    // Try to match postal code pattern (5 digits) and remove it completely
     const postalCodeMatch = location.match(/(\d{5})/);
     if (postalCodeMatch) {
       const postalCode = postalCodeMatch[1];
-      const city = location.replace(postalCode, "").trim();
+      // Remove postal code and any extra whitespace
+      const city = location.replace(/\d{5}\s*/g, "").replace(/\s+/g, " ").trim();
       return { city, postalCode };
     }
     
     // If no postal code found, return as city
-    return { city: location, postalCode: "" };
+    return { city: location.trim(), postalCode: "" };
+  };
+
+  // Function to format found date in Slovak format
+  const formatFoundDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const dayNames = ['nedeľa', 'pondelok', 'utorok', 'streda', 'štvrtok', 'piatok', 'sobota'];
+      const dayName = dayNames[date.getDay()];
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${dayName}, ${year}-${month}-${day}, ${hours}:${minutes}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Function to create Google Maps search URL
+  const createMapUrl = (city: string) => {
+    const encodedCity = encodeURIComponent(city);
+    return `https://www.google.com/maps/search/${encodedCity}`;
   };
 
   // Function to format relative time
@@ -84,6 +123,21 @@ const App: React.FC = () => {
   const handleImageClick = (index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
+  };
+
+  // Function to handle ad selection with mobile responsiveness
+  const handleAdSelect = (ad: Ad) => {
+    setSelectedAd(ad);
+    // Check if mobile screen size
+    if (window.innerWidth < 1024) { // lg breakpoint
+      setIsMobileDetailView(true);
+    }
+  };
+
+  // Function to go back from mobile detail view
+  const handleBackToList = () => {
+    setIsMobileDetailView(false);
+    setSelectedAd(null);
   };
 
   if (loading) {
@@ -105,8 +159,8 @@ const App: React.FC = () => {
           <p className="text-red-300">{error}</p>
         </div>
       </div>
-    );
-  }
+          );
+   }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -128,6 +182,7 @@ const App: React.FC = () => {
               onChange={e => {
                 setFilter(e.target.value);
                 setSelectedAd(null);
+                setIsMobileDetailView(false);
               }}
               className="bg-gray-700 border border-gray-600 px-3 py-2 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
@@ -142,7 +197,139 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-4">
+      {/* Mobile Detail View */}
+      {isMobileDetailView && selectedAd ? (
+        <div className="lg:hidden fixed inset-0 bg-gray-900 z-50 flex flex-col">
+          {/* Mobile Header with Back Button */}
+          <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center gap-3">
+            <button
+              onClick={handleBackToList}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold text-white truncate flex-1">
+              {selectedAd.is_available === false && "🚫 "}
+              {selectedAd.title}
+            </h1>
+          </div>
+          
+          {/* Mobile Detail Content */}
+          <div className="flex-1 overflow-y-auto">
+            {(() => {
+              const { city } = parseLocation(selectedAd.location || "");
+              return (
+                <div className="p-4">
+                  {/* Price and Meta */}
+                  <div className="border-b border-gray-700 pb-4 mb-6">
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-400 mb-4 items-center">
+                      <span className="text-xl font-semibold text-green-400">
+                        {selectedAd.price}
+                      </span>
+                      {selectedAd.found_at && (
+                        <span>📅 Nájdené: {formatFoundDate(selectedAd.found_at)}</span>
+                      )}
+                      {selectedAd.found_at && (
+                        <span>⏰ {formatRelativeTime(selectedAd.found_at)}</span>
+                      )}
+                      {city && (
+                        <a
+                          href={createMapUrl(city)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          📍 {city}
+                        </a>
+                      )}
+                      {selectedAd.view_count && <span>👁️ {selectedAd.view_count}</span>}
+                      <span className="text-blue-400">🔍 {selectedAd.query}</span>
+                      {selectedAd.is_available === false && (
+                        <span className="text-red-400">🚫 Už nie je dostupné</span>
+                      )}
+                      {selectedAd.last_updated && (
+                        <span className="text-gray-500">🔄 Aktualizované: {formatRelativeTime(selectedAd.last_updated)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Images */}
+                  {selectedAd.images.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-3">Obrázky</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedAd.images.map((imagePath, index) => (
+                          <div key={index} className="group cursor-pointer">
+                            <img
+                              src={imagePath}
+                              alt={`${selectedAd.title} - obrázok ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg bg-gray-700 transition-transform group-hover:scale-105"
+                              onClick={() => handleImageClick(index)}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {selectedAd.description && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-3">Popis</h3>
+                      <div className="bg-gray-700 rounded-lg p-4">
+                        <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                          {selectedAd.description}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact */}
+                  {selectedAd.contact && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-3">Kontakt</h3>
+                      <div className="bg-gray-700 rounded-lg p-4">
+                        <p className="text-gray-300 whitespace-pre-wrap">
+                          {selectedAd.contact}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-3 pt-4 border-t border-gray-700">
+                    <a
+                      href={selectedAd.htmlPath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      📄 Uložené HTML
+                    </a>
+                    <a
+                      href={`https://bazos.sk${selectedAd.htmlPath.includes('http') ? '' : '/'}${selectedAd.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                    >
+                      🔗 Pôvodný inzerát
+                    </a>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Desktop and Mobile List View */}
+      <div className={`max-w-7xl mx-auto p-4 ${isMobileDetailView ? 'lg:block hidden' : ''}`}>
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Ads List */}
           <div className="lg:col-span-1">
@@ -159,11 +346,11 @@ const App: React.FC = () => {
                 ) : (
                   <div className="divide-y divide-gray-700">
                     {filteredAds.map(ad => {
-                      const { city, postalCode } = parseLocation(ad.location || "");
+                      const { city } = parseLocation(ad.location || "");
                       return (
                         <div
                           key={ad.id}
-                          onClick={() => setSelectedAd(ad)}
+                          onClick={() => handleAdSelect(ad)}
                           className={`p-4 cursor-pointer transition-colors hover:bg-gray-700 ${
                             selectedAd?.id === ad.id ? "bg-gray-700 border-r-4 border-blue-500" : ""
                           } ${ad.is_available === false ? "opacity-60" : ""}`}
@@ -180,20 +367,27 @@ const App: React.FC = () => {
                               <div className="text-sm text-gray-400 flex justify-between items-center">
                                 <span className="font-semibold text-green-400">{ad.price}</span>
                                 <div className="text-right">
-                                  <div>{ad.date}</div>
                                   {ad.found_at && (
                                     <div className="text-xs text-gray-500">
-                                      {formatRelativeTime(ad.found_at)}
+                                      Nájdené:
                                     </div>
                                   )}
+                                  <div className="text-xs">
+                                    {ad.found_at ? formatFoundDate(ad.found_at) : ad.date}
+                                  </div>
                                 </div>
                               </div>
                               <div className="text-xs text-gray-400 flex justify-between items-center mt-1">
                                 {city && (
-                                  <span>
+                                  <a
+                                    href={createMapUrl(city)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     📍 {city}
-                                    {postalCode && <span className="ml-1">({postalCode})</span>}
-                                  </span>
+                                  </a>
                                 )}
                                 {ad.view_count && (
                                   <span className="text-gray-500">👁️ {ad.view_count}</span>
@@ -208,7 +402,7 @@ const App: React.FC = () => {
                                 <img
                                   src={ad.images[0]}
                                   alt={ad.title}
-                                  className={`w-16 h-16 object-cover rounded-lg bg-gray-700 ${
+                                  className={`w-20 h-20 object-cover rounded-lg bg-gray-700 ${
                                     ad.is_available === false ? "grayscale" : ""
                                   }`}
                                   onError={(e) => {
@@ -228,12 +422,12 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Ad Detail */}
-          <div className="lg:col-span-2">
+          {/* Ad Detail - Hidden on mobile when in mobile detail view */}
+          <div className={`lg:col-span-2 ${isMobileDetailView ? 'hidden' : 'hidden lg:block'}`}>
             <div className="bg-gray-800 border border-gray-700 rounded-lg min-h-[600px]">
               {selectedAd ? (
                 (() => {
-                  const { city, postalCode } = parseLocation(selectedAd.location || "");
+                  const { city } = parseLocation(selectedAd.location || "");
                   return (
                     <div className="p-6">
                       {/* Title and Meta */}
@@ -243,19 +437,25 @@ const App: React.FC = () => {
                           {selectedAd.title}
                         </h1>
                         
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-400 items-center">
                           <span className="text-lg font-semibold text-green-400">
                             {selectedAd.price}
                           </span>
-                          <span>📅 {selectedAd.date}</span>
+                          {selectedAd.found_at && (
+                            <span>📅 Nájdené: {formatFoundDate(selectedAd.found_at)}</span>
+                          )}
                           {selectedAd.found_at && (
                             <span>⏰ {formatRelativeTime(selectedAd.found_at)}</span>
                           )}
                           {city && (
-                            <span>
+                            <a
+                              href={createMapUrl(city)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 transition-colors"
+                            >
                               📍 {city}
-                              {postalCode && <span className="ml-1">({postalCode})</span>}
-                            </span>
+                            </a>
                           )}
                           {selectedAd.view_count && <span>👁️ {selectedAd.view_count}</span>}
                           <span className="text-blue-400">🔍 {selectedAd.query}</span>
