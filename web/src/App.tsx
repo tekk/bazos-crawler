@@ -19,6 +19,8 @@ interface Ad {
   location?: string;
   view_count?: string;
   category?: string;
+  is_available?: boolean;
+  last_updated?: string;
 }
 
 const App: React.FC = () => {
@@ -111,7 +113,10 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <h1 className="text-2xl font-bold text-orange-500">Bazos Crawler</h1>
+          <h1 className="text-2xl font-bold text-orange-500 flex items-center gap-2">
+            <img src="/img/favicon/favicon-32x32.png" alt="Logo" className="w-8 h-8" />
+            Bazos Crawler
+          </h1>
           
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-400">
@@ -161,29 +166,59 @@ const App: React.FC = () => {
                           onClick={() => setSelectedAd(ad)}
                           className={`p-4 cursor-pointer transition-colors hover:bg-gray-700 ${
                             selectedAd?.id === ad.id ? "bg-gray-700 border-r-4 border-blue-500" : ""
-                          }`}
+                          } ${ad.is_available === false ? "opacity-60" : ""}`}
                         >
-                          <div className="font-medium text-white mb-1 line-clamp-2">
-                            {ad.title}
-                          </div>
-                          <div className="text-sm text-gray-400 flex justify-between items-center">
-                            <span className="font-semibold text-green-400">{ad.price}</span>
-                            <div className="text-right">
-                              <div>{ad.date}</div>
-                              {ad.found_at && (
-                                <div className="text-xs text-gray-500">
-                                  {formatRelativeTime(ad.found_at)}
+                          <div className="flex gap-3">
+                            {/* Text content */}
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium text-white mb-1 line-clamp-2 ${
+                                ad.is_available === false ? "line-through" : ""
+                              }`}>
+                                {ad.is_available === false && "🚫 "}
+                                {ad.title}
+                              </div>
+                              <div className="text-sm text-gray-400 flex justify-between items-center">
+                                <span className="font-semibold text-green-400">{ad.price}</span>
+                                <div className="text-right">
+                                  <div>{ad.date}</div>
+                                  {ad.found_at && (
+                                    <div className="text-xs text-gray-500">
+                                      {formatRelativeTime(ad.found_at)}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
+                              <div className="text-xs text-gray-400 flex justify-between items-center mt-1">
+                                {city && (
+                                  <span>
+                                    📍 {city}
+                                    {postalCode && <span className="ml-1">({postalCode})</span>}
+                                  </span>
+                                )}
+                                {ad.view_count && (
+                                  <span className="text-gray-500">👁️ {ad.view_count}</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-blue-400 mt-1">{ad.query}</div>
                             </div>
+                            
+                            {/* Product image */}
+                            {ad.images && ad.images.length > 0 && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={ad.images[0]}
+                                  alt={ad.title}
+                                  className={`w-16 h-16 object-cover rounded-lg bg-gray-700 ${
+                                    ad.is_available === false ? "grayscale" : ""
+                                  }`}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
-                          {city && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              📍 {city}
-                              {postalCode && <span className="ml-1">({postalCode})</span>}
-                            </div>
-                          )}
-                          <div className="text-xs text-blue-400 mt-1">{ad.query}</div>
                         </div>
                       );
                     })}
@@ -204,6 +239,7 @@ const App: React.FC = () => {
                       {/* Title and Meta */}
                       <div className="border-b border-gray-700 pb-4 mb-6">
                         <h1 className="text-2xl font-bold text-white mb-2">
+                          {selectedAd.is_available === false && "🚫 "}
                           {selectedAd.title}
                         </h1>
                         
@@ -223,6 +259,12 @@ const App: React.FC = () => {
                           )}
                           {selectedAd.view_count && <span>👁️ {selectedAd.view_count}</span>}
                           <span className="text-blue-400">🔍 {selectedAd.query}</span>
+                          {selectedAd.is_available === false && (
+                            <span className="text-red-400">🚫 Už nie je dostupné</span>
+                          )}
+                          {selectedAd.last_updated && (
+                            <span className="text-gray-500">🔄 Aktualizované: {formatRelativeTime(selectedAd.last_updated)}</span>
+                          )}
                         </div>
                       </div>
 

@@ -100,6 +100,17 @@ def detail(url, folder):
         response = requests.get(url, headers=HEADERS, timeout=20)
         s = BeautifulSoup(response.text, "html.parser")
         
+        # Check if item is still available
+        unavailable_indicators = [
+            "inzerát bol vymazaný",
+            "inzerát už nie je dostupný", 
+            "inzerát bol stiahnutý",
+            "inzerát neexistuje"
+        ]
+        
+        page_text = s.get_text().lower()
+        is_available = not any(indicator in page_text for indicator in unavailable_indicators)
+        
         # Extract description
         desc_elem = s.find("div", class_="popisdetail")
         desc = desc_elem.get_text("\n", strip=True) if desc_elem else ""
@@ -137,16 +148,26 @@ def detail(url, folder):
                 logger.warning(f"Failed to download image {img_url}: {e}")
                 
         logger.info(f"Downloaded {len(imgs)} images for product")
-        return desc, imgs, contact
+        return desc, imgs, contact, is_available
         
     except Exception as e:
         logger.error(f"Failed to fetch product details from {url}: {e}")
-        return "", [], ""
+        return "", [], "", False
 
 
 
 def crawl():
     logger.info("Starting Bazos crawler")
+    
+    # Load existing data to update
+    existing_data = {}
+    if (OUT_DIR/"index.json").exists():
+        try:
+            existing_data = json.loads((OUT_DIR/"index.json").read_text(encoding="utf-8"))
+            logger.info(f"Loaded {len(existing_data.get('ads', []))} existing items for updates")
+        except Exception as e:
+            logger.error(f"Failed to load existing data: {e}")
+    
     for s in SEARCHES:
         q,o,d,smax,cat = s.values()
         sub=CATEGORIES[cat]
@@ -170,6 +191,7 @@ def crawl():
         
         found_count = 0
         processed_count = 0
+        updated_count = 0
         
         for box in soup.select("div.inzeraty.inzeratyflex"):
             found_count += 1
@@ -180,9 +202,6 @@ def crawl():
             # Only add base URL if href is relative (starts with /)
             if link.startswith("/"):
                 link = "https://bazos.sk" + link
-            if link in hist: 
-                logger.debug(f"Skipping already processed ad: {link}")
-                continue
             title=title_elem.get_text(strip=True)
             
             # Find price in the new structure
@@ -205,8 +224,46 @@ def crawl():
             # Extract seller info from contact area (if available)
             seller_info = ""
             
+            ad_id = md5(link)
+            
+            # Check if this is an existing item that needs updating
+            existing_item = None
+            for item in existing_data.get('ads', []):
+                if item.get('url') == link:
+                    existing_item = item
+                    break
+            
+            if existing_item:
+                # Update existing item with new information
+                logger.info(f"Updating existing item: '{title}'")
+                
+                # Get updated details
+                desc, imgs, contact, is_available = detail(link, Path(existing_item.get('htmlPath', '')).parent)
+                
+                # Update the existing item
+                existing_item.update({
+                    "price": price,
+                    "view_count": view_count,
+                    "location": location,
+                    "description": desc,
+                    "contact": contact,
+                    "is_available": is_available,
+                    "last_updated": datetime.now().isoformat()
+                })
+                
+                # Update images if new ones are available
+                if imgs:
+                    existing_item["images"] = [f"data/found_items/{str(p.relative_to(OUT_DIR))}" for p in imgs]
+                
+                updated_count += 1
+                continue
+            
             if date<cutoff: 
                 logger.debug(f"Skipping old ad '{title}' from {date.strftime('%Y-%m-%d')}")
+                continue
+                
+            if link in hist: 
+                logger.debug(f"Skipping already processed ad: {link}")
                 continue
                 
             logger.info(f"Processing new ad: '{title}' - {price} ({date.strftime('%Y-%m-%d')})")
@@ -216,9 +273,8 @@ def crawl():
             day_dir=OUT_DIR/q/date.strftime("%Y-%m-%d"); day_dir.mkdir(parents=True, exist_ok=True)
             
             # Get product details with images
-            desc,imgs,contact=detail(link,day_dir)
+            desc,imgs,contact,is_available=detail(link,day_dir)
             
-            ad_id=md5(link)
             imgs_html="".join(f'<img src="{p.name}">' for p in imgs)
             
             # Create HTML file
@@ -244,7 +300,8 @@ def crawl():
                 "location": location,
                 "view_count": view_count,
                 "seller_info": seller_info,
-                "category": sub
+                "category": sub,
+                "is_available": is_available
             }
             
             EXPORT.append(product_data)
@@ -253,11 +310,14 @@ def crawl():
             
             logger.info(f"Successfully processed product '{title}' with {len(imgs)} images")
             
-        logger.info(f"Found {found_count} ads, processed {processed_count} new ads for query '{q}'")
+        logger.info(f"Found {found_count} ads, processed {processed_count} new ads, updated {updated_count} existing ads for query '{q}'")
         hist_file.write_text(json.dumps(sorted(hist)),encoding="utf-8")
-        
-    logger.info(f"Crawler finished. Total products processed: {len(EXPORT)}")
-    (OUT_DIR/"index.json").write_text(json.dumps({"ads":EXPORT},ensure_ascii=False,indent=2),encoding="utf-8")
+    
+    # Combine existing and new data
+    all_ads = existing_data.get('ads', []) + EXPORT
+    
+    logger.info(f"Crawler finished. Total products: {len(all_ads)}")
+    (OUT_DIR/"index.json").write_text(json.dumps({"ads":all_ads},ensure_ascii=False,indent=2),encoding="utf-8")
 
 if __name__=="__main__":
     OUT_DIR.mkdir(parents=True, exist_ok=True)
