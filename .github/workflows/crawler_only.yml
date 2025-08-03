@@ -1,0 +1,63 @@
+name: Crawler Only - Every 2 Hours
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */2 * * *'  # Every 2 hours
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: pip install -r bazos_crawler/requirements.txt
+      
+      - name: Create data directories
+        run: |
+          mkdir -p web/data/found_items
+          mkdir -p web/data/history
+          mkdir -p web/data/logs
+      
+      - name: Restore previous data from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: crawler-data
+          path: web/data/
+        continue-on-error: true
+      
+      - name: Run crawler
+        run: python bazos_crawler/bazos_crawler.py
+        env:
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+      
+      - name: Upload data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawler-data
+          path: web/data/
+          retention-days: 30
+      
+      - name: Commit and push updated data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add web/data/
+          if ! git diff --staged --quiet; then
+            git commit -m "Update crawler data - $(date '+%Y-%m-%d %H:%M:%S')"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
