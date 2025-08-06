@@ -30,7 +30,7 @@ def setup_logging():
     console_handler.setFormatter(formatter)
     
     # Setup logger
-    logger = logging.getLogger('bazos_crawler')
+    logger = logging.getLogger('hysterka_crawler')
     logger.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
@@ -157,7 +157,7 @@ def detail(url, folder):
 
 
 def crawl():
-    logger.info("Starting Bazos crawler")
+    logger.info("Starting Hysterka crawler")
     
     # Load existing data to update
     existing_data = {}

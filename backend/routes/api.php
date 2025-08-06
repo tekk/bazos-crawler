@@ -29,6 +29,11 @@ Route::prefix('v1')->group(function () {
 
     // Authentication routes
     Route::prefix('auth')->group(function () {
+        // Basic authentication
+        Route::post('/login', [SocialAuthController::class, 'login']);
+        Route::post('/register', [SocialAuthController::class, 'register']);
+        
+        // Social authentication
         Route::get('/{provider}/redirect', [SocialAuthController::class, 'redirect'])
             ->where('provider', 'google|facebook|apple');
         

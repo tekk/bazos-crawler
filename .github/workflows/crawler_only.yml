@@ -1,4 +1,4 @@
-name: Crawler Only - Every 2 Hours
+name: Hysterka Crawler - Every 2 Hours
 
 on:
   workflow_dispatch:

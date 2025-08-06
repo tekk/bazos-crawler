@@ -1,6 +1,6 @@
-# Bazos Crawler Backend
+# Hysterka Backend
 
-Modern PHP backend pro multi-user Bazos crawler s SSO podporou a pokročilými bezpečnostnými funkcemi.
+Modern PHP backend pro multi-user Hysterka s SSO podporou a pokročilými bezpečnostnými funkcemi.
 
 ## 🚀 Technológie
 
@@ -111,12 +111,12 @@ APPLE_CLIENT_SECRET=your_client_secret
 
 ### Database
 ```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=bazos_crawler
-DB_USERNAME=root
-DB_PASSWORD=
+DB_CONNECTION="pgsql"
+DB_HOST="postgresql.r6.websupport.sk"
+DB_PORT="5432"
+DB_DATABASE="bazos_crawler"
+DB_USERNAME="MD4TKVMf"
+DB_PASSWORD="<J7Hf,m0cj6m-:DA3j1:"
 ```
 
 ### Redis
@@ -126,12 +126,24 @@ REDIS_PASSWORD=null
 REDIS_PORT=6379
 ```
 
+### Email (SMTP)
+```env
+MAIL_MAILER=smtp
+MAIL_HOST="smtp.m1.websupport.sk"
+MAIL_PORT="465"
+MAIL_USERNAME="no-reply@hysterka.com"
+MAIL_PASSWORD="$}**2]V5@-te?9~&:w,l"
+MAIL_ENCRYPTION="ssl"
+MAIL_FROM_ADDRESS="no-reply@hysterka.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
 ### File Storage (S3)
 ```env
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_DEFAULT_REGION=eu-central-1
-AWS_BUCKET=your_bucket_name
+AWS_ACCESS_KEY_ID="QOZP4V2HY8U2HV6EB4VC"
+AWS_SECRET_ACCESS_KEY="fBVGmP0XgcUsXFm06cVxUWT5vHi0Y6IMOolyZwKb"
+AWS_DEFAULT_REGION="eu-central-1"
+AWS_BUCKET="hysterka"
 ```
 
 ## 🔄 API Endpoints

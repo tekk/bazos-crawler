@@ -1,6 +1,6 @@
 {
     "name": "bazos-crawler/backend",
-    "description": "Multi-user Bazos Crawler Backend with SSO support",
+    "description": "Multi-user Hysterka Backend with SSO support",
     "type": "project",
     "license": "MIT",
     "require": {

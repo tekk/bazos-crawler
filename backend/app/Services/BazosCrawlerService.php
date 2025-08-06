@@ -18,7 +18,7 @@ class BazosCrawlerService
 
     private const RATE_LIMIT_DELAY = 2; // seconds between requests
     private const MAX_RETRIES = 3;
-    private const TIMEOUT = 30;
+    private const TIMEOUT = 95;
 
     /**
      * Crawl search and return results

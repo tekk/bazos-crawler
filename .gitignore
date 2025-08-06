@@ -222,6 +222,7 @@ pnpm-debug.log*
 # Production builds
 /web/dist/
 /web/build/
+/web/node_modules/
 
 # Runtime data
 pids
@@ -286,7 +287,7 @@ build/Release
 .svelte-kit
 
 # ==========================================
-# Project Specific - Bazos Crawler
+# Project Specific - Hysterka
 # ==========================================
 
 # Crawled data (images, HTML files, JSON index)
@@ -376,3 +377,5 @@ $RECYCLE.BIN/
 .directory
 .Trash-*
 .nfs*
+
+backend/vendor/
